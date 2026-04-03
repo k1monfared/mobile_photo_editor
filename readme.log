@@ -1,61 +1,179 @@
 - ImgEdt
     - status: POC | mode: Claude Code | updated: 2026-04-01 | version: 0.1.0
-    - An open source Android photo editor with real-time OpenGL filters
-    - License: GPL v2 (algorithms derived from Telegram)
-    - Website: https://k1monfared.github.io/imgedt/
+    - website: https://k1monfared.github.io/imgedt/
+    - An open source, GPU-accelerated photo editor for Android
 
-- Features
-    - Photo adjustments (OpenGL ES 2.0):
-        - Exposure, Contrast, Saturation, Warmth
-        - Highlights, Shadows, Sharpen, Fade
-        - Grain, Vignette
-    - Crop and rotate:
-        - Freeform, 1:1, 4:3, 3:4, 16:9, 9:16 aspect ratios
-        - Free rotation (-90 to +90 degrees) with rotation wheel
-        - 90-degree rotation and mirror
-        - Expand mode toggle (allow black areas during rotation)
-    - Drawing:
-        - Freehand brush with 8 color options
-        - Adjustable brush size and opacity
-        - Eraser tool with icon
-        - Undo support (up to 20 steps) with visual state
+- What is ImgEdt?
+    - ImgEdt is a standalone Android photo editing application built from scratch with a focus on real-time performance and clean architecture. The image processing pipeline runs entirely on the GPU using OpenGL ES 2.0 fragment shaders, delivering instant visual feedback as you adjust parameters.
+    - The core filter algorithms (color space conversions, tone mapping, noise generation, vignette curves) are ported from Telegram's open source photo editor. Rather than extracting Telegram's tightly coupled codebase, ImgEdt reimplements the GLSL shaders in a clean, modular architecture with zero Telegram dependencies.
+    - The project has two goals:
+        - Be a useful standalone photo editor that respects user privacy (no ads, no tracking, no network permissions)
+        - Serve as a reusable Android library (AAR) that other developers can embed in their own apps
 
-- Architecture
-    - Two modules:
-        - app/: Thin shell with photo picker and permissions
-        - editor/: Photo editor library module (com.imgedt.editor)
+- Technical Overview
+    - Language: Java
+    - Min SDK: API 21 (Android 5.0 Lollipop)
+    - Target SDK: API 35
+    - Build system: Gradle 8.7 with Android Gradle Plugin 8.6.1
+    - Rendering: OpenGL ES 2.0 via EGL on a dedicated HandlerThread
+    - Architecture: Two-module Gradle project
+        - app/ (com.imgedt.app): Thin launcher shell. Photo picker, permissions, launches editor.
+        - editor/ (com.imgedt.editor): The editor library. Contains all editing logic, UI, and shaders. Designed to eventually be distributed as an AAR.
     - Filter pipeline:
-        - OpenGL ES 2.0 with GLSL shaders ported from Telegram
-        - Multi-pass rendering: sharpen, tools (all adjustments), display
-        - Real-time preview on TextureView
-    - Crop:
-        - CropAreaView (overlay with draggable handles)
-        - CropView (image display with pan/zoom)
-        - CropRotationWheel (fine rotation control)
-    - Paint:
-        - Canvas-based stamp rendering
-        - Undo via bitmap snapshots
+        - Source bitmap is uploaded as a GL texture
+        - Pass 1 (Sharpen): Unsharp mask via neighboring texel sampling
+        - Pass 2 (Tools): Single-pass fragment shader applies all 10 adjustments simultaneously using color space math (RGB, HSL, HSV, YUV conversions), Perlin noise for grain, and sigmoid curves for vignette
+        - Pass 3 (Display): Renders the result to a TextureView surface
+        - For saving: renders at full bitmap resolution to an offscreen framebuffer, reads pixels back with glReadPixels, flips vertically (GL origin is bottom-left), and writes JPEG via MediaStore
+    - Crop system:
+        - CropAreaView: draws the crop overlay (dimmed surround, 3x3 grid, corner handles) and handles resize touch events with aspect ratio constraints
+        - CropView: displays the image with Matrix-based pan/zoom/rotate via ScaleGestureDetector, enforces content-covers-frame constraint after gesture release
+        - CropRotationWheel: horizontal drag-to-rotate control with tick marks and snap-to-zero
+    - Paint system:
+        - Stamp-based brush rendering on a Canvas double buffer (persistent canvas + temporary stroke layer)
+        - Strokes are committed via Porter-Duff compositing (SRC_OVER for brush, DST_OUT for eraser)
+        - Undo via bitmap snapshot stack (up to 20 entries)
+
+- Features (v0.1.0)
+    - Photo Adjustments (GPU-accelerated):
+        - [x] Exposure: gamma curve power function
+        - [x] Contrast: center-relative linear scaling
+        - [x] Saturation: luminance-weighted desaturation mix
+        - [x] Warmth: YUV color shift with luma-dependent curve
+        - [x] Highlights: power curve on bright tones with white target interpolation
+        - [x] Shadows: power curve on dark tones with black target interpolation
+        - [x] Sharpen: Laplacian edge enhancement (separate pass)
+        - [x] Fade: polynomial curve that lifts blacks
+        - [x] Grain: 3D Perlin noise with luma-dependent density
+        - [x] Vignette: radial distance with sigmoid falloff
+    - Crop and Rotate:
+        - [x] 6 aspect ratio presets (Free, 1:1, 4:3, 3:4, 16:9, 9:16)
+        - [x] Free rotation from -90 to +90 degrees with rotation wheel
+        - [x] 90-degree rotation (tap 4 times to return to original)
+        - [x] Horizontal mirror
+        - [x] Expand mode toggle (allow black areas vs. auto-zoom to fill)
+        - [x] Pinch-to-zoom and pan
+        - [x] Full reset to original state
+    - Drawing:
+        - [x] Freehand brush with 8 colors
+        - [x] Adjustable brush size (2px to 100px)
+        - [x] Adjustable opacity
+        - [x] Eraser tool
+        - [x] Undo (up to 20 strokes)
+    - App:
+        - [x] Photo picker with Android 13+ READ_MEDIA_IMAGES permission
+        - [x] Save to gallery via MediaStore (JPEG quality 95)
+        - [x] Aspect-ratio-preserving preview
+
+- Roadmap
+    - Near term:
+        - [] Test and fix rendering on physical devices
+        - [] Curves editor (RGB channel-level spline control with 200x1 LUT texture)
+        - [] Blur tool (radial and linear, using dynamically generated Gaussian blur shaders)
+        - [] Enhance / auto-adjust (CDT-based histogram equalization)
+    - Medium term:
+        - [] Text overlays with draggable/rotatable entities and font selection
+        - [] Shape tools (rectangle, circle, star, arrow) via SDF fragment shaders
+        - [] Neon brush effect (3-channel stamp texture with glow compositing)
+        - [] Skin smoothing (multi-pass high-pass filter with mask)
+    - Long term:
+        - [] Package editor module as standalone AAR for library distribution
+        - [] F-Droid submission
+        - [] Release signing with dedicated keystore
+        - [] Sticker support
+        - [] Video frame editing
 
 - Building
     - Requirements:
         - Android SDK (platform 35, build tools 36.1.0)
-        - JDK 17+
-    - Build:
+        - JDK 17 or later
+    - Clone and build:
+        - git clone https://github.com/k1monfared/imgedt.git
+        - cd imgedt
         - ./gradlew assembleDebug
-    - Output:
-        - app/build/outputs/apk/debug/app-debug.apk
+    - Output APK: app/build/outputs/apk/debug/app-debug.apk
+    - Install on device:
+        - adb install app/build/outputs/apk/debug/app-debug.apk
 
 - Releases
-    - APKs available at GitHub Releases
-    - CI/CD: GitHub Actions builds APK on tag push (v*)
-    - Versioning: Semantic versioning (versionName), monotonic versionCode
-    - Changelog: CHANGELOG.md in Keep a Changelog format
+    - APKs are published on GitHub Releases: https://github.com/k1monfared/imgedt/releases
+    - CI/CD: GitHub Actions automatically builds and publishes an APK when a version tag (v*) is pushed
+    - Versioning: Semantic versioning for versionName, monotonically increasing versionCode
+    - Changelog: CHANGELOG.md follows the Keep a Changelog format
+    - For automatic updates on your device, use Obtainium (https://github.com/ImranR98/Obtainium) pointed at this repo
 
-- Roadmap
-    - [] Test on physical Android device
-    - [] Curves (RGB channel-level control)
-    - [] Blur (radial and linear)
-    - [] Text overlays with multiple fonts
-    - [] Neon brush effect
-    - [] Package as AAR library for embedding in other apps
-    - [] F-Droid submission
+- Contributing
+    - Contributions are welcome. Here is how to get involved:
+    - Getting started:
+        - Fork the repository
+        - Create a feature branch from master
+        - Make your changes and ensure ./gradlew assembleDebug passes
+        - Submit a pull request with a clear description of what you changed and why
+    - What to work on:
+        - Check the Roadmap section above for planned features
+        - Bug reports and fixes are always appreciated
+        - UI/UX improvements that bring the editor closer to Telegram's polish
+        - Performance optimizations (especially for the GL pipeline on lower-end devices)
+        - New brush types or filter effects
+    - Code conventions:
+        - Java, not Kotlin (to match the existing codebase)
+        - All UI is built programmatically (no XML layouts)
+        - New image processing should use GLSL shaders where possible for GPU acceleration
+        - Follow existing patterns: FilterShaders for shader strings, FilterRenderer for GL pipeline, FilterParams for parameter mapping
+    - Testing:
+        - No automated test suite yet. Manual testing on a physical device is required.
+        - Test your changes with various image sizes and aspect ratios
+        - Verify that saved images match the preview
+    - Pull request guidelines:
+        - One feature or fix per PR
+        - Include a description of what the change does and how to test it
+        - If adding a new filter parameter, document the shader math and the slider-to-uniform mapping
+
+- License
+    - ImgEdt is licensed under the GNU General Public License v2.0 (GPL-2.0).
+    - Why GPL v2?
+        - The core image processing shaders are derived from Telegram's Android app, which is licensed under GPL v2. Under the terms of GPL v2, any derivative work that incorporates GPL-licensed code must itself be distributed under the same license. Since ImgEdt ports Telegram's GLSL shader algorithms (color space conversions, tone curves, noise functions, vignette math), the entire project inherits the GPL v2 obligation.
+    - What this means for contributors:
+        - All contributions to ImgEdt will be licensed under GPL v2
+        - You can freely use, modify, and distribute ImgEdt, but any distributed derivative must also be GPL v2 and include source code
+        - If you embed the editor library (AAR) in your own app, your app must also be GPL v2 compatible
+    - What this means for users:
+        - You will always have access to the full source code
+        - You can build the app yourself from source at any time
+        - No one can take this project proprietary
+
+- Project Structure
+    - app/
+        - src/main/java/com/imgedt/app/
+            - MainActivity.java: Photo picker, permissions, launches EditorActivity
+        - src/main/res/: App resources (icon, strings, styles)
+        - build.gradle: App module config (applicationId, version)
+    - editor/
+        - src/main/java/com/imgedt/editor/
+            - EditorActivity.java: Main editor screen with GL preview and adjustment tools
+            - filter/
+                - FilterShaders.java: All GLSL shader source code (vertex + fragment)
+                - FilterRenderer.java: OpenGL ES 2.0 pipeline (EGL context, textures, framebuffers, multi-pass rendering)
+                - FilterParams.java: Adjustment parameter storage and slider-to-uniform conversion
+            - crop/
+                - CropActivity.java: Crop screen with aspect presets and rotation controls
+                - CropView.java: Image display with pan/zoom/rotate gestures
+                - CropAreaView.java: Crop overlay with draggable handles
+                - CropRotationWheel.java: Horizontal rotation control
+                - CropState.java: Crop transform state (translation, scale, rotation, orientation, mirror)
+            - paint/
+                - PaintActivity.java: Drawing screen with color/size/opacity controls
+                - PaintView.java: Canvas-based brush stamp rendering with undo
+                - BrushShaders.java: GLSL shaders for future GL-based brush rendering
+        - src/main/res/drawable/: Vector icons (rotate, mirror, reset, eraser, undo, expand)
+        - build.gradle: Editor library module config
+    - docs/
+        - index.html: GitHub Pages site with phone mockup carousel
+    - .github/workflows/
+        - build.yml: CI build on push/PR
+        - release.yml: Automated APK release on version tag
+    - CHANGELOG.md: Version history in Keep a Changelog format
+    - LICENSE: GNU GPL v2.0
+
+- Acknowledgments
+    - Telegram (https://github.com/DrKLO/Telegram): The GLSL filter shaders and image processing algorithms are derived from Telegram's open source Android client. Telegram's photo editor implements a sophisticated multi-pass OpenGL pipeline with color space transformations, tone mapping, and noise generation that ImgEdt ports into a clean standalone architecture.
