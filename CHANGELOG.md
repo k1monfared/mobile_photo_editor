@@ -31,5 +31,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tool highlight was off by 2 positions
 - Crop reset did not restore orientation or mirror state
 
-[Unreleased]: https://github.com/k1monfared/mobile_photo_editor/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/k1monfared/mobile_photo_editor/releases/tag/v0.1.0
+[Unreleased]: https://github.com/k1monfared/imgedt/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/k1monfared/imgedt/releases/tag/v0.1.0

@@ -2,7 +2,7 @@
     - status: POC | mode: Claude Code | updated: 2026-04-01 | version: 0.1.0
     - An open source Android photo editor with real-time OpenGL filters
     - License: GPL v2 (algorithms derived from Telegram)
-    - Website: https://k1monfared.github.io/mobile_photo_editor/
+    - Website: https://k1monfared.github.io/imgedt/
 
 - Features
     - Photo adjustments (OpenGL ES 2.0):
