@@ -19,7 +19,7 @@ public class CropAreaView extends View {
         void onAreaChanged(RectF cropRect, boolean finished);
     }
 
-    private enum Control {
+    enum Control {
         NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, TOP, LEFT, BOTTOM, RIGHT
     }
 
@@ -206,7 +206,7 @@ public class CropAreaView extends View {
         return false;
     }
 
-    private Control hitTest(float x, float y) {
+    Control hitTest(float x, float y) {
         float tp = touchPadding;
         // Corners (priority)
         if (dist(x, y, cropRect.left, cropRect.top) < tp) return Control.TOP_LEFT;
@@ -221,7 +221,7 @@ public class CropAreaView extends View {
         return Control.NONE;
     }
 
-    private void applyResize(float dx, float dy) {
+    void applyResize(float dx, float dy) {
         float l = startRect.left;
         float t = startRect.top;
         float r = startRect.right;

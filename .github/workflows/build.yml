@@ -26,6 +26,21 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      - name: Run smart tests (JVM only in CI)
+        run: |
+          chmod +x scripts/run-smart-tests.sh
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "build.gradle")
+          fi
+          if [ -n "$CHANGED" ]; then
+            scripts/run-smart-tests.sh $CHANGED
+          else
+            echo "No changed files detected, running all tests"
+            scripts/run-smart-tests.sh --all
+          fi
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

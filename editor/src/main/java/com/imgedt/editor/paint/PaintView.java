@@ -209,7 +209,7 @@ public class PaintView extends View {
         return false;
     }
 
-    private void drawStrokeBetween(float x0, float y0, float x1, float y1) {
+    void drawStrokeBetween(float x0, float y0, float x1, float y1) {
         float dx = x1 - x0;
         float dy = y1 - y0;
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
@@ -226,7 +226,7 @@ public class PaintView extends View {
         }
     }
 
-    private void drawStamp(Canvas canvas, float x, float y) {
+    void drawStamp(Canvas canvas, float x, float y) {
         float radius = brushSize / 2;
         if (isEraser) {
             // Draw opaque white on the paint layer to build an erase mask.
@@ -240,7 +240,7 @@ public class PaintView extends View {
         }
     }
 
-    private void commitStroke() {
+    void commitStroke() {
         if (isEraser) {
             // For eraser, apply paint layer to canvas
             canvasCanvas.drawBitmap(paintBitmap, 0, 0, eraserDisplayPaint);
@@ -252,7 +252,7 @@ public class PaintView extends View {
         paintCanvas.drawColor(0, PorterDuff.Mode.CLEAR);
     }
 
-    private void saveUndoState() {
+    void saveUndoState() {
         // New stroke invalidates redo history
         for (Bitmap b : redoStack) b.recycle();
         redoStack.clear();
